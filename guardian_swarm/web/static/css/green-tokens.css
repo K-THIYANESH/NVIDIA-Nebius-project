@@ -1,0 +1,101 @@
+/*
+  Guardian Swarm V3 — NVIDIA-Inspired Green Design System Tokens
+  Palette: ~50 Carefully Curated Green-Family & Precision Neutral Tokens
+  Controlled Agent Execution • Evidence • Verification
+*/
+
+:root {
+  /* 1. Brand & Primary Greens */
+  --nv-green-50:  #f4faf5;
+  --nv-green-100: #eaf6ee;
+  --nv-green-200: #c9ebd4;
+  --nv-green-300: #a3dcba;
+  --nv-green-400: #8ed400;
+  --nv-green-500: #76b900;  /* Canonical Primary Green */
+  --nv-green-600: #5ea100;
+  --nv-green-700: #488200;
+  --nv-green-800: #336100;
+  --nv-green-900: #1d3d00;
+
+  /* 2. Deep Forest, Pine & Dark Tactical Surfaces */
+  --nv-forest-950: #040d09;
+  --nv-forest-900: #071a12;
+  --nv-forest-850: #0b2418;
+  --nv-forest-800: #0f2e20;
+  --nv-forest-750: #123d29;
+  --nv-forest-700: #184b33;
+  --nv-forest-650: #1f5e41;
+  --nv-forest-600: #267150;
+
+  /* 3. Emerald, Mint & Vivid Precision Accents */
+  --nv-mint-100:   #d8f3dc;
+  --nv-mint-200:   #b7e4c7;
+  --nv-mint-300:   #95d5b2;
+  --nv-mint-400:   #74c69d;
+  --nv-mint-500:   #52b788;
+  --nv-emerald-400: #10b981;
+  --nv-emerald-500: #00a86b;
+  --nv-emerald-600: #059669;
+  --nv-emerald-700: #047857;
+
+  /* 4. Neutral Greens, Backgrounds & Surface Cards */
+  --nv-bg-canvas:  #080e0b;
+  --nv-bg-panel:   #0b1410;
+  --nv-bg-card:    #0f1b16;
+  --nv-bg-card-hover: #14241d;
+  --nv-bg-input:   #122019;
+  --nv-bg-active:  #182e23;
+  --nv-bg-glass:   rgba(15, 27, 22, 0.78);
+  --nv-surface-tint: rgba(118, 185, 0, 0.08);
+
+  /* 5. Borders, Dividers & Outlines */
+  --nv-border-subtle: #192b21;
+  --nv-border-default: #223c2e;
+  --nv-border-active:  #36624a;
+  --nv-border-bright:  #76b900;
+  --nv-border-light-green: #d5e4d8;
+
+  /* 6. Typography & Foreground Neutrals */
+  --nv-text-primary:   #f4faf5;
+  --nv-text-secondary: #c0d3c6;
+  --nv-text-muted:     #789082;
+  --nv-text-dim:       #4c6155;
+  --nv-text-highlight: #8ed400;
+
+  /* 7. Semantic Status Tokens (Carefully Differentiated) */
+  --nv-status-success:       #76b900;
+  --nv-status-success-bg:    rgba(118, 185, 0, 0.12);
+  --nv-status-verified:      #00a86b;
+  --nv-status-verified-bg:   rgba(0, 168, 107, 0.14);
+  --nv-status-warning:       #eab308;
+  --nv-status-warning-bg:    rgba(234, 179, 8, 0.12);
+  --nv-status-danger:        #ef4444;
+  --nv-status-danger-bg:     rgba(239, 68, 68, 0.12);
+  --nv-status-info:          #38bdf8;
+  --nv-status-info-bg:       rgba(56, 189, 248, 0.12);
+
+  /* 8. Backward Compatibility Aliases */
+  --bg-page:        var(--nv-bg-canvas);
+  --bg-panel:       var(--nv-bg-panel);
+  --bg-card:        var(--nv-bg-card);
+  --bg-input:       var(--nv-bg-input);
+  --bg-hover:       var(--nv-bg-card-hover);
+  --border-color:   var(--nv-border-default);
+
+  --color-orange:   var(--nv-green-500); /* Successfully Replaced with NVIDIA Green */
+  --color-green:    var(--nv-green-500);
+  --color-emerald:  var(--nv-emerald-500);
+  --color-amber:    var(--nv-status-warning);
+  --color-red:      var(--nv-status-danger);
+  --color-blue:     var(--nv-status-info);
+  --color-purple:   #a855f7;
+  --color-grey:     var(--nv-text-muted);
+
+  --text-primary:   var(--nv-text-primary);
+  --text-secondary: var(--nv-text-secondary);
+  --text-muted:     var(--nv-text-muted);
+
+  --font-ui: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-heading: 'Outfit', sans-serif;
+}

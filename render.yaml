@@ -1,0 +1,38 @@
+# render.yaml — Render Web Service auto-deploy configuration
+# Guardian Swarm V3 · Nebius × NVIDIA Global AI Hackathon
+
+services:
+  - type: web
+    name: guardian-swarm
+    runtime: python
+    region: oregon
+    plan: free
+
+    # Build
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+
+    # Start
+    startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --log-level info
+
+    # Environment variables (set sensitive values in Render dashboard, not here)
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_DEBUG
+        value: "0"
+      # ── Nebius / NVIDIA (set real values in Render Dashboard → Environment) ──
+      - key: NEBIUS_API_KEY
+        sync: false          # Mark as secret — Render will prompt for value
+      - key: NEBIUS_BASE_URL
+        value: "https://api.studio.nebius.ai/v1"
+      - key: NEBIUS_MODEL
+        value: "nvidia/Llama-3_1-Nemotron-Ultra-253B-v1"
+      # ── Optional additional provider keys (all secret) ──────────────────────
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
