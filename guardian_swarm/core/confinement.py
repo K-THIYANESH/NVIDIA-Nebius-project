@@ -9,27 +9,27 @@ from guardian_swarm.utils.database import SessionLocal, ModelRegistryModel
 
 TASK_GROUPS: Dict[str, Dict[str, Any]] = {
     "RESEARCH": {
-        "models": ["perplexity", "gpt-4o"],
+        "models": ["perplexity", "gpt-4o", "nemotron", "nvidia", "nebius"],
         "allowed_tools": ["search_web", "summarise", "cite", "competitive_analysis", "web_search", "read_file"],
         "blocked_tools": ["execute_code", "write_file", "send_email", "query_db", "delete_file"]
     },
     "CODE": {
-        "models": ["claude-sonnet-4-6", "codex"],
+        "models": ["claude-sonnet-4-6", "codex", "nemotron", "nvidia", "nebius"],
         "allowed_tools": ["generate_code", "review_code", "debug", "write_tests", "write_docs", "write_file", "run_tests", "read_file"],
         "blocked_tools": ["web_browse", "read_customer_data", "send_email", "query_finance", "delete_file"]
     },
     "DRAFTING": {
-        "models": ["gpt-4o", "claude-haiku-4-5"],
+        "models": ["gpt-4o", "claude-haiku-4-5", "nemotron", "nvidia", "nebius"],
         "allowed_tools": ["write_email", "write_report", "create_doc", "outline_presentation", "read_file"],
         "blocked_tools": ["query_db", "external_api_call", "execute_code", "delete_file"]
     },
     "SUPPORT": {
-        "models": ["gpt-4o-mini"],
+        "models": ["gpt-4o-mini", "nemotron", "nvidia", "nebius"],
         "allowed_tools": ["answer_faq", "triage_ticket", "lookup_kb", "read_file"],
         "blocked_tools": ["read_financials", "read_employee_data", "infrastructure_access"]
     },
     "DATA_ANALYSIS": {
-        "models": ["phi-3.5-mini", "smollm2"],
+        "models": ["phi-3.5-mini", "smollm2", "nemotron", "nvidia", "nebius"],
         "allowed_tools": ["analyse_data", "process_spreadsheet", "internal_report", "read_file"],
         "blocked_tools": ["external_api_call", "delete_file"]
     }

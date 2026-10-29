@@ -24,6 +24,9 @@ FALLBACK_NVIDIA_MODELS = [
 ]
 
 
+_UNSET = object()
+
+
 class NebiusClient:
     """
     Client for Nebius Token Factory (OpenAI-compatible chat completions API).
@@ -33,15 +36,32 @@ class NebiusClient:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: Any = _UNSET,
         base_url: Optional[str] = None,
         model: Optional[str] = None,
         timeout: float = 25.0,
         max_retries: int = 2
     ):
-        self.api_key = api_key or os.getenv("NEBIUS_API_KEY")
-        self.base_url = (base_url or os.getenv("NEBIUS_BASE_URL") or DEFAULT_NEBIUS_BASE_URL).rstrip("/")
-        self.model = model or os.getenv("NEBIUS_MODEL") or DEFAULT_NVIDIA_MODEL
+        if api_key is _UNSET:
+            self.api_key = os.getenv("NEBIUS_API_KEY") or os.getenv("NVIDIA_API_KEY")
+        else:
+            self.api_key = api_key
+        # Automatically bridge nvapi- keys to NVIDIA NIM if Nebius endpoint is default
+        custom_base = base_url or os.getenv("NEBIUS_BASE_URL")
+        if self.api_key and self.api_key.startswith("nvapi-") and not custom_base:
+            self.base_url = "https://integrate.api.nvidia.com/v1"
+        else:
+            self.base_url = (custom_base or DEFAULT_NEBIUS_BASE_URL).rstrip("/")
+
+        # Set default model
+        if model:
+            self.model = model
+        elif os.getenv("NEBIUS_MODEL"):
+            self.model = os.getenv("NEBIUS_MODEL")
+        elif self.api_key and self.api_key.startswith("nvapi-"):
+            self.model = "nvidia/nemotron-3.5-bolt-e4b"
+        else:
+            self.model = DEFAULT_NVIDIA_MODEL
         self.timeout = timeout
         self.max_retries = max_retries
 
@@ -131,6 +151,30 @@ class NebiusClient:
             except urllib.error.HTTPError as e:
                 err_content = e.read().decode("utf-8", errors="replace")
                 last_error = f"HTTP {e.code}: {e.reason} - {err_content}"
+                # If using nvapi- key against Nebius host and rejected, automatically bridge to NVIDIA NIM
+                if e.code in [401, 403, 404] and self.api_key.startswith("nvapi-") and "nebius.com" in self.base_url:
+                    nim_endpoint = f"https://integrate.api.nvidia.com/v1/chat/completions"
+                    try:
+                        req_nim = urllib.request.Request(nim_endpoint, data=data_bytes, headers=headers, method="POST")
+                        with urllib.request.urlopen(req_nim, timeout=self.timeout) as resp_nim:
+                            parsed_nim = json.loads(resp_nim.read().decode("utf-8"))
+                            choice_nim = parsed_nim.get("choices", [{}])[0]
+                            content_nim = choice_nim.get("message", {}).get("content", "")
+                            usage_nim = parsed_nim.get("usage", {})
+                            return {
+                                "success": True,
+                                "content": content_nim,
+                                "model": parsed_nim.get("model", self.model),
+                                "usage": {
+                                    "prompt_tokens": usage_nim.get("prompt_tokens", 0),
+                                    "completion_tokens": usage_nim.get("completion_tokens", 0),
+                                    "total_tokens": usage_nim.get("total_tokens", 0)
+                                },
+                                "latency_ms": round((time.time() - start_time) * 1000, 2),
+                                "raw": parsed_nim
+                            }
+                    except Exception as fallback_err:
+                        last_error = f"{last_error} | NVIDIA NIM bridge error: {fallback_err}"
                 if e.code in [401, 403]:
                     # Authentication failure: fail immediately without retrying
                     break

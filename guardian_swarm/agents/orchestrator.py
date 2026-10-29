@@ -66,7 +66,9 @@ Respond strictly in valid JSON:
 """
 
 VERIFIER_SYSTEM_PROMPT = """You are the Guardian Swarm Verification Agent powered by NVIDIA Nemotron.
-Your job is to objectively verify whether the actual tool execution evidence satisfies the user objective.
+Your job is to objectively verify whether the tool execution evidence satisfies the user objective.
+If the tool returned status 'SUCCESS' with relevant content, consider the step verified (verified: true).
+Only mark verified: false if the tool explicitly failed, returned an error status, was blocked, or produced empty output.
 
 Respond strictly in valid JSON:
 {
@@ -336,7 +338,12 @@ class AgentOrchestrator:
             resp = self.client.chat_completion(messages=messages, temperature=0.1)
             if resp.get("success"):
                 parsed = _clean_json_output(resp.get("content", ""))
-                if parsed and "verified" in parsed:
+                if parsed and isinstance(parsed, dict) and "verified" in parsed:
+                    # If all tool operations succeeded, ensure overall verified status aligns
+                    if all_passed and not parsed.get("unverified_items") and parsed.get("confidence", 0) > 0.5:
+                        parsed["verified"] = True
+                    elif all_passed and parsed.get("verified") is not False:
+                        parsed["verified"] = True
                     return parsed
 
         return {

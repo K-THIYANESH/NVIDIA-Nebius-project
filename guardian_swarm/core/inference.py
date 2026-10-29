@@ -12,6 +12,12 @@ import urllib.request
 from typing import Dict, Any, List, Optional, Tuple
 
 try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+try:
     import tiktoken
     _TIKTOKEN_AVAILABLE = True
 except ImportError:
@@ -59,6 +65,7 @@ def get_api_key(provider: str) -> Optional[str]:
     # Fallback to Environment variables
     env_map = {
         "nebius": ["NEBIUS_API_KEY", "NEBIUS_TOKEN"],
+        "nvidia": ["NVIDIA_API_KEY", "NVIDIA_NIM_API_KEY"],   # NVIDIA NIM (build.nvidia.com)
         "openai": ["OPENAI_API_KEY"],
         "anthropic": ["ANTHROPIC_API_KEY"],
         "perplexity": ["PERPLEXITY_API_KEY"],
@@ -78,7 +85,8 @@ def get_api_key(provider: str) -> Optional[str]:
 
 def get_available_providers() -> List[Tuple[str, str]]:
     """Returns a list of (provider_name, api_key) pairs for all active registered keys."""
-    providers = ["nebius", "openai", "anthropic", "perplexity", "google", "gemini", "grok", "deepseek"]
+    # nvidia (NIM) is checked first — most directly relevant for the hackathon
+    providers = ["nvidia", "nebius", "openai", "anthropic", "perplexity", "google", "gemini", "grok", "deepseek"]
     available = []
     seen = set()
     for p in providers:
@@ -144,7 +152,16 @@ def execute_swarm_inference(
         return res
 
     # Determine primary target provider based on model name
-    primary_provider = "nebius" if ("nemotron" in model_name.lower() or "nebius" in model_name.lower()) else "openai"
+    # NVIDIA NIM keys (nvapi-...) and NVIDIA model IDs route to integrate.api.nvidia.com
+    nvidia_nim_key = get_api_key("nvidia")
+    if nvidia_nim_key and nvidia_nim_key.startswith("nvapi-"):
+        # Always prefer direct NVIDIA NIM when a real nvapi- key is present
+        res = _query_nvidia_nim(augmented_prompt, model_name, nvidia_nim_key, task_group, start_time)
+        if res:
+            res["file_access_status"] = file_access_status
+            return res
+
+    primary_provider = "nebius"
     if "nemotron" in model_name.lower() or "nebius" in model_name.lower():
         primary_provider = "nebius"
     elif "gemini" in model_name.lower() or "google" in model_name.lower():
@@ -193,7 +210,9 @@ def execute_swarm_inference(
             "fallback_provider": prov,
             "task_group": task_group
         })
-        if prov == "openai":
+        if prov == "nvidia":
+            res = _query_nvidia_nim(augmented_prompt, "nvidia/nemotron-3.5-bolt-e4b", key, task_group, start_time)
+        elif prov == "openai":
             res = _query_openai(augmented_prompt, "gpt-4o-mini", key, task_group, start_time)
         elif prov == "anthropic":
             res = _query_anthropic(augmented_prompt, "claude-3-5-sonnet", key, task_group, start_time)
@@ -205,6 +224,8 @@ def execute_swarm_inference(
             res = _query_grok(augmented_prompt, "grok-2", key, task_group, start_time)
         elif prov == "deepseek":
             res = _query_deepseek(augmented_prompt, "deepseek-chat", key, task_group, start_time)
+        else:
+            res = None
         if res:
             res["file_access_status"] = file_access_status
             return res
@@ -228,6 +249,67 @@ def _get_system_prompt(task_group: str) -> str:
         "If the user greets you or asks a general question, reply conversationally. "
         "Only produce structured reports or code blocks when explicitly requested by the task."
     )
+
+
+def _query_nvidia_nim(
+    prompt: str,
+    model_name: str,
+    api_key: str,
+    task_group: str,
+    start_time: float
+) -> Optional[Dict[str, Any]]:
+    """
+    Queries NVIDIA NIM (build.nvidia.com) via integrate.api.nvidia.com.
+    Uses nvapi- key. Defaults to nemotron-3.5-bolt-e4b — a compact, fast,
+    tool-use-optimised Nemotron model perfect for agentic gate verification.
+    """
+    NVIDIA_NIM_BASE = "https://integrate.api.nvidia.com/v1"
+    DEFAULT_NIM_MODEL = "nvidia/nemotron-3.5-bolt-e4b"
+    target_model = model_name if model_name and "nvidia/" in model_name else DEFAULT_NIM_MODEL
+
+    endpoint = f"{NVIDIA_NIM_BASE}/chat/completions"
+    payload: Dict[str, Any] = {
+        "model": target_model,
+        "messages": [
+            {"role": "system", "content": _get_system_prompt(task_group)},
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.3,
+        "max_tokens": 1024
+    }
+    data_bytes = json.dumps(payload).encode("utf-8")
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+        "Accept": "application/json",
+        "User-Agent": "GuardianSwarm-AgentEngine/3.0"
+    }
+    try:
+        req = urllib.request.Request(endpoint, data=data_bytes, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=25) as resp:
+            raw = json.loads(resp.read().decode("utf-8"))
+            content = raw["choices"][0]["message"]["content"]
+            usage = raw.get("usage", {})
+            total_tokens = usage.get("total_tokens") or count_tokens(prompt + content)
+            elapsed_ms = round((time.time() - start_time) * 1000, 2)
+            log_event("info", f"NVIDIA NIM ({target_model}) call successful", {"tokens": total_tokens})
+            return {
+                "output": content,
+                "tokens_used": total_tokens,
+                "prompt_tokens": usage.get("prompt_tokens", count_tokens(prompt)),
+                "completion_tokens": usage.get("completion_tokens", count_tokens(content)),
+                "provider": f"NVIDIA NIM ({target_model})",
+                "model": target_model,
+                "latency_ms": elapsed_ms,
+                "cost_usd": round(total_tokens * 0.0000004, 6)  # ~$0.40/1M tokens est.
+            }
+    except urllib.error.HTTPError as e:
+        err = e.read().decode("utf-8", errors="replace")
+        log_event("error", f"NVIDIA NIM HTTP error: {e.code} - {err}")
+        return None
+    except Exception as e:
+        log_event("error", f"NVIDIA NIM call failed: {e}")
+        return None
 
 
 def _query_nebius(prompt: str, model_name: str, api_key: str, task_group: str, start_time: float) -> Dict[str, Any]:
